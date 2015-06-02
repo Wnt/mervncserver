@@ -623,40 +623,12 @@ rfbNewClientAction ScreenToVnc::newclient(rfbClientPtr cl)
 {
     IN;
 
-    bool allowConnection = false;
+    cl->clientData = (void*)calloc(sizeof(ClientData),1);
+    ClientData* cd=(ClientData*)cl->clientData;
+    cd->dragMode = false;
+    cl->clientGoneHook = clientgone;
+    return RFB_CLIENT_ACCEPT;
 
-    // TODO: make that configurable, usb device interface is not always rndis0!
-    QNetworkInterface usbIf = QNetworkInterface::interfaceFromName("rndis0");
-
-    QHostAddress remoteAddr = QHostAddress(QString::fromLatin1(cl->host));
-
-    if (remoteAddr.protocol() == QAbstractSocket::IPv6Protocol
-        && remoteAddr.toString().startsWith("::ffff:")){
-        // this is an IPv4-mapped IPv6 address
-        // see: http://www.tcpipguide.com/free/t_IPv6IPv4AddressEmbedding-2.htm
-        QString remoteAddrIPv4 = remoteAddr.toString().remove("::ffff:");
-        LOG() << "remoteAddrIPv4" << remoteAddrIPv4;
-        remoteAddr = QHostAddress(remoteAddrIPv4);
-    }
-
-    foreach (QNetworkAddressEntry entry, usbIf.addressEntries()){
-        if (remoteAddr.protocol() == entry.ip().protocol()
-            && remoteAddr.isInSubnet(entry.ip(), entry.prefixLength())){
-            allowConnection = true;
-        }
-    }
-
-    if (allowConnection){
-        cl->clientData = (void*)calloc(sizeof(ClientData),1);
-        ClientData* cd=(ClientData*)cl->clientData;
-        cd->dragMode = false;
-        cl->clientGoneHook = clientgone;
-        return RFB_CLIENT_ACCEPT;
-    } else {
-        LOG() << "RFB_CLIENT_REFUSE";
-        cl->clientGoneHook = clientgone;
-        return RFB_CLIENT_REFUSE;
-    }
 }
 
 /****************************************************************************
